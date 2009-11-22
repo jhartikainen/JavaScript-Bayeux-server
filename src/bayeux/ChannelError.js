@@ -7,4 +7,4 @@ bayeux.ChannelError = function(code, data) {
 	this.data = data || '';
 };
 
-bayeux.ChannelError.prototype = Error.prototype;
+bayeux.ChannelError.prototype = new Error();

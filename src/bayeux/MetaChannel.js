@@ -17,10 +17,6 @@ bayeux.MetaChannel = function(server) {
 };
 
 bayeux.MetaChannel.prototype = {
-	_advice: {
-		reconnect: 'none'
-	},
-
 	processMessage: function(message) {
 		var channel = message.getChannel();
 
@@ -39,12 +35,12 @@ bayeux.MetaChannel.prototype = {
 	},
 	
 	_subscribeHandler: function(message) {
-		this._server.getClient(message.clientId);
+		var client = this._server.getClient(message.clientId);
 		if(!client) {
 			throw new bayeux.ChannelError(402, message.clientId);
 		}
 
-		if(!this._server.subscribe(client, message.subscription)) {
+		if(!this._server.subscribe(client, message.subscription.substr(1).split(/\//g))) {
 			throw new bayeux.ChannelError(404, message.subscription);
 		}
 
@@ -67,7 +63,10 @@ bayeux.MetaChannel.prototype = {
 		return new bayeux.Message({
 			channel: '/meta/connect',
 			successful: true,
-			clientId: message.clientId
+			clientId: message.clientId,
+			advice: {
+				reconnect: 'retry'
+			}
 		});
 	},
 
@@ -76,7 +75,10 @@ bayeux.MetaChannel.prototype = {
 		return new bayeux.Message({
 			channel: '/meta/disconnect',
 			successful: true,
-			clientId: message.clientId
+			clientId: message.clientId,
+			advice: {
+				reconnect: 'handshake'
+			}
 		});
 	},
 
@@ -87,7 +89,9 @@ bayeux.MetaChannel.prototype = {
 			clientId: this._generateClientId(),
 			successful: true,
 			supportedConnectionTypes: ['long-polling'],
-			advice: this._advice
+			advice: {
+				reconnect: 'none'
+			}
 		};
 
 		if(message.id) {
