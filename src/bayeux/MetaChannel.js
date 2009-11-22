@@ -17,7 +17,7 @@ bayeux.MetaChannel = function(server) {
 };
 
 bayeux.MetaChannel.prototype = {
-	processMessage: function(message) {
+	processMessage: function(connection, message) {
 		var channel = message.getChannel();
 
 		var handler = '_' + channel[1] + 'Handler';
@@ -31,10 +31,10 @@ bayeux.MetaChannel.prototype = {
 			throw new bayeux.ChannelError(401);
 		}
 		
-		return this[handler](message);
+		this[handler](connection, message);
 	},
 	
-	_subscribeHandler: function(message) {
+	_subscribeHandler: function(connection, message) {
 		var client = this._server.getClient(message.clientId);
 		if(!client) {
 			throw new bayeux.ChannelError(402, message.clientId);
@@ -44,23 +44,25 @@ bayeux.MetaChannel.prototype = {
 			throw new bayeux.ChannelError(404, message.subscription);
 		}
 
-		return new bayeux.Message({
+		var response = new bayeux.Message({
 			channel: '/meta/subscribe',
 			clientId: message.clientId,
 			successful: true,
 			subscription: message.subscription
 		});
+
+		client.addConnection(connection);
+		client.queueMessage(response);
+		client.flushMessages();
 	},
 
-	_connectHandler: function(message) {
+	_connectHandler: function(connection, message) {
 		var client = this._server.getClient(message.clientId);
 		if(!client) {
 			throw new bayeux.ChannelError(402, message.clientId);
 		}
 
-		this._server.clientConnected(client);
-
-		return new bayeux.Message({
+		var response = new bayeux.Message({
 			channel: '/meta/connect',
 			successful: true,
 			clientId: message.clientId,
@@ -68,11 +70,23 @@ bayeux.MetaChannel.prototype = {
 				reconnect: 'retry'
 			}
 		});
+
+		//After a client has been connected, it does new /meta/connect's
+		//to open a polling request
+		if(client.getState() == 'connected') {
+			client.addConnection(connection);
+			client.queueMessage(response);
+		}
+		//If connection hasn't yet been established, just send the message right away
+		else {
+			this._server.clientConnected(client);
+			connection.sendMessages([response]);
+		}
 	},
 
-	_disconnectHandler: function(message) {
+	_disconnectHandler: function(connection, message) {
 		this._server.disconnect(message.clientId);
-		return new bayeux.Message({
+		var response = new bayeux.Message({
 			channel: '/meta/disconnect',
 			successful: true,
 			clientId: message.clientId,
@@ -80,9 +94,10 @@ bayeux.MetaChannel.prototype = {
 				reconnect: 'handshake'
 			}
 		});
+		connection.sendMessages([response]);
 	},
 
-	_handshakeHandler: function(message) {
+	_handshakeHandler: function(connection, message) {
 		var spec = {
 			channel: '/meta/handshake',
 			version: '1.0',
@@ -99,7 +114,8 @@ bayeux.MetaChannel.prototype = {
 		}
 
 		this._server.registerClientId(spec.clientId);
-		return new bayeux.Message(spec);
+		var response = new bayeux.Message(spec);
+		connection.sendMessages([response]);
 	},
 
 	_generateClientId: function() {

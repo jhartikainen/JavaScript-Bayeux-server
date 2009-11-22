@@ -26,14 +26,15 @@ bayeux.CometdServer.prototype = {
 
 	/**
 	 * Process a message
+	 * @param {bayeux.UniteConnection} connection
 	 * @param {bayeux.Message} message
 	 * @return {bayeux.Message} response message
 	 */
-	processMessage: function(message) {
+	processMessage: function(connection, message) {
 		var channel = message.getChannel();
 
 		try {
-			var response = this._channels[channel[0]].processMessage(message);
+			this._channels[channel[0]].processMessage(connection, message);
 		}
 		catch(error) {
 			if(error instanceof bayeux.ChannelError) {
@@ -43,12 +44,40 @@ bayeux.CometdServer.prototype = {
 					clientId: message.clientId,
 					error: this._errorMessageFromCode(error.code, error.data)
 				});
+
+				connection.sendMessages([response]);
 			}
 			else {
 				throw error;
 			}
 		}
-		return response;
+	},
+
+	/**
+	 * Get any messages from a new connection and associate it with a client
+	 * @param {bayeux.UniteConnection} connection
+	 */
+	newConnection: function(connection) {
+		var messages = bayeux.Message.fromJson(connection.getData());
+		if(messages.length < 1) {
+			return;
+		}
+
+		for(var i = 0; i < messages.length; i++) {
+			this.processMessage(connection, messages[i]);
+		}
+	},
+
+	/**
+	 * Goes through all clients and sends any queued messages per queuestrategy used
+	 */
+	sendQueuedMessages: function() {
+		this._clients.forEach(function(client){
+			if(client.getQueueLength() > 1) {
+				opera.postError('Flushing...');
+				client.flushMessages();
+			}
+		});
 	},
 
 	/**
