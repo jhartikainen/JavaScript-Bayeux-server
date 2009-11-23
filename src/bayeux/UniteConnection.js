@@ -55,6 +55,6 @@ bayeux.UniteConnection.prototype = {
 			body = body.substr(8);
 		}
 
-		return decodeURIComponent(body);
+		return body;
 	}
 };
