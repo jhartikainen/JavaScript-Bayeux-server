@@ -16,6 +16,14 @@ bayeux.UniteConnection = function(connection) {
 
 bayeux.UniteConnection.prototype = {
 	/**
+	 * Set the response to this connection's message
+	 * @param {bayeux.Message} response
+	 */
+	setResponse: function(response) {
+		this._response = response;
+	},
+
+	/**
 	 * Send messages over this connection
 	 * @param {Array} messages Array of bayeux.Message to send
 	 */
@@ -27,6 +35,10 @@ bayeux.UniteConnection.prototype = {
 
 		response.setResponseHeader('Content-Type', 'application/json');
 		
+		if(this._response) {
+			messages.push(this._response);
+		}
+
 		var jsonData = messages.map(function(message) {
 			return message.toJson();
 		});

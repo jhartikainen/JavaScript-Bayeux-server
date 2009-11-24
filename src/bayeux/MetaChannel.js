@@ -51,8 +51,8 @@ bayeux.MetaChannel.prototype = {
 			subscription: message.subscription
 		});
 
+		connection.setResponse(response);
 		client.addConnection(connection);
-		client.queueMessage(response);
 		client.flushMessages();
 	},
 
@@ -74,8 +74,8 @@ bayeux.MetaChannel.prototype = {
 		//After a client has been connected, it does new /meta/connect's
 		//to open a polling request
 		if(client.getState() == 'connected') {
+			connection.setResponse(response);
 			client.addConnection(connection);
-			client.queueMessage(response);
 		}
 		//If connection hasn't yet been established, just send the message right away
 		else {
@@ -105,7 +105,7 @@ bayeux.MetaChannel.prototype = {
 			successful: true,
 			supportedConnectionTypes: ['long-polling'],
 			advice: {
-				reconnect: 'none'
+				reconnect: 'retry'
 			}
 		};
 
