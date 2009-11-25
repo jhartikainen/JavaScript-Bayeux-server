@@ -34,6 +34,14 @@ bayeux.Client.prototype = {
 	},
 
 	/**
+	 * Is there an active connection or other to push messages to?
+	 * @return {Boolean}
+	 */
+	canFlush: function() {
+		return this._connections.length > 0;
+	},
+
+	/**
 	 * Attempts to flush messages through a connection
 	 */
 	flushMessages: function() {
