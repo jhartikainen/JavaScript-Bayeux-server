@@ -10,12 +10,16 @@ bayeux.Client = function(id, server) {
 };
 
 bayeux.Client.prototype = {
+	_timeout: 10000,
+	_connectionLost: null,
+
 	/**
 	 * Add a connection for sending messages
 	 * @param {bayeux.UniteConnection} connection
 	 */
 	addConnection: function(connection) {
 		this._connections.push(connection);
+		this._connectionLost = null;
 	},
 	/**
 	 * Queue a message for sending 
@@ -41,6 +45,15 @@ bayeux.Client.prototype = {
 		return this._connections.length > 0;
 	},
 
+	hasTimedOut: function() {
+		if(this._connectionLost) {
+			var now = new Date();
+			return now.getTime() - this._connectionLost.getTime() > this._timeout;
+		}
+
+		return false;
+	},
+
 	/**
 	 * Attempts to flush messages through a connection
 	 */
@@ -52,6 +65,11 @@ bayeux.Client.prototype = {
 		var conn = this._connections.pop();
 		conn.sendMessages(this._messageQueue);
 		this._messageQueue = [];
+
+		//No connections so keep date for timeout calculation
+		if(this._connections.length == 0) {
+			this._connectionLost = new Date();
+		}
 	},
 
 	getId: function() {
